@@ -1,0 +1,13 @@
+{
+  "name": "chatgpt-code-review",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node analyze_results.js"
+  },
+  "dependencies": {
+    "openai": "^3.0.0"
+  }
+}

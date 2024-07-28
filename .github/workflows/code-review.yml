@@ -1,0 +1,81 @@
+name: Code Review From ChatGPT
+
+permissions:
+  contents: read
+  pull-requests: write
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  code-review:
+    runs-on: ubuntu-latest
+
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake git nodejs npm
+        npm install
+        npm install dotenv
+
+    - name: Clone Google Test
+      run: |
+        cd /usr/src
+        sudo git clone https://github.com/google/googletest.git
+        cd googletest
+        sudo mkdir -p build
+        cd build
+        sudo cmake ..
+        sudo make
+
+    - name: Copy Google Test libraries
+      run: sudo cp /usr/src/googletest/build/lib/*.a /usr/lib
+
+    - name: Configure CMake
+      run: |
+        mkdir -p build
+        cd build
+        cmake ..
+
+    - name: Build the project
+      run: |
+        cd build
+        make
+
+    - name: Run tests
+      id: run_tests
+      run: |
+        cd build
+        ctest --output-on-failure > result.log 2>&1
+        cat result.log
+      continue-on-error: true
+
+    - name: Check environment variable
+      run: echo $OPENAI_API_KEY
+
+    - name: Analyze with ChatGPT
+      if: always()
+      run: |
+        echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" > .env
+        node analyze_results.js
+
+    - name: Upload feedback
+      uses: actions/upload-artifact@v2
+      with:
+        name: feedback
+        path: feedback.log
+
+    - name: Comment on PR with feedback
+      if: always()
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        path: feedback.log
